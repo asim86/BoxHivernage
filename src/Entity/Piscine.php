@@ -65,11 +65,6 @@ class Piscine
     private $filtration;
 
     /**
-     * @ORM\OneToMany(targetEntity="App\Entity\CloudLink", mappedBy="piscine")
-     */
-    private $cloudLink;
-
-    /**
      * @ORM\Column(name="api_key", type="string", length=191, nullable=false, unique=true)
      */
     private $apiKey;
@@ -78,6 +73,21 @@ class Piscine
      * @ORM\Column(type="string", length=191, nullable=true)
      */
     private $typeChimie;
+
+    /**
+     * @ORM\Column(type="string", length=191)
+     */
+    private $linkType;
+
+    /**
+     * @ORM\Column(type="string", length=191)
+     */
+    private $cloudKey;
+
+    /**
+     * @ORM\Column(type="string", length=191)
+     */
+    private $cloudServer;
 
     /**
      * @ORM\PrePersist()
@@ -227,29 +237,6 @@ class Piscine
         return $this->cloudLink;
     }
 
-    public function addCloudLink(CloudLink $cloudLink): self
-    {
-        if (!$this->cloudLink->contains($cloudLink)) {
-            $this->cloudLink[] = $cloudLink;
-            $cloudLink->setPiscine($this);
-        }
-
-        return $this;
-    }
-
-    public function removeCloudLink(CloudLink $cloudLink): self
-    {
-        if ($this->cloudLink->contains($cloudLink)) {
-            $this->cloudLink->removeElement($cloudLink);
-            // set the owning side to null (unless already changed)
-            if ($cloudLink->getPiscine() === $this) {
-                $cloudLink->setPiscine(null);
-            }
-        }
-
-        return $this;
-    }
-
     public function __toString()
     {
         return $this->getNom();
@@ -263,6 +250,42 @@ class Piscine
     public function setApiKey(string $apiKey): self
     {
         $this->apiKey = $apiKey;
+
+        return $this;
+    }
+
+    public function getLinkType(): ?string
+    {
+        return $this->linkType;
+    }
+
+    public function setLinkType(string $linkType): self
+    {
+        $this->linkType = $linkType;
+
+        return $this;
+    }
+
+    public function getCloudKey(): ?string
+    {
+        return $this->cloudKey;
+    }
+
+    public function setCloudKey(string $cloudKey): self
+    {
+        $this->cloudKey = $cloudKey;
+
+        return $this;
+    }
+
+    public function getCloudServer(): ?string
+    {
+        return $this->cloudServer;
+    }
+
+    public function setCloudServer(string $cloudServer): self
+    {
+        $this->cloudServer = $cloudServer;
 
         return $this;
     }
