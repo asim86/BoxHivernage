@@ -1,0 +1,23 @@
+{% include 'base.html.twig' %}
+
+{% block title %}{% endblock %}
+
+{% block body %}
+    <h1>Dashboard Controle de la Piscine</h1>
+    <table>
+        <thead>
+        <tr>
+            <th colspan="2">Température</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>{{ poolTemperature.date|date('mMY H:i') }}</td>
+            <td>{{ poolTemperature.temperature }} °C</td>
+        </tr>
+        </tbody>
+    </table>
+    <h3>Programme de la Pompe</h3>
+    <h3>Pompe</h3>
+    <a href="#" class="myButtonStart">Démarrer Pompe</a>
+{% endblock %}

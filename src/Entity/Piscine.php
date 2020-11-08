@@ -90,6 +90,16 @@ class Piscine
     private $cloudServer;
 
     /**
+     * @ORM\Column (type="boolean")
+     */
+    private $pumpStatus;
+
+    /**
+     * @ORM\Column (type="datetime", nullable=true)
+     */
+    private $nextPumpStatusSwitch;
+
+    /**
      * @ORM\PrePersist()
      */
     public function firstSave()
@@ -286,6 +296,30 @@ class Piscine
     public function setCloudServer(string $cloudServer): self
     {
         $this->cloudServer = $cloudServer;
+
+        return $this;
+    }
+
+    public function getPumpStatus(): ?bool
+    {
+        return $this->pumpStatus;
+    }
+
+    public function setPumpStatus(bool $pumpStatus): self
+    {
+        $this->pumpStatus = $pumpStatus;
+
+        return $this;
+    }
+
+    public function getNextPumpStatusSwitch(): ?\DateTimeInterface
+    {
+        return $this->nextPumpStatusSwitch;
+    }
+
+    public function setNextPumpStatusSwitch(?\DateTimeInterface $nextPumpStatusSwitch): self
+    {
+        $this->nextPumpStatusSwitch = $nextPumpStatusSwitch;
 
         return $this;
     }
