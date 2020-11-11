@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\VarDumper\VarDumper;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class DefaultController extends AbstractController
 {
@@ -36,6 +37,7 @@ class DefaultController extends AbstractController
     public function piscineAction(Piscine $piscine)
     {
         $poolTemperature = $this->getMesure($piscine);
+        $this->piscinePumpToState($piscine, 'off');
 
         return $this->render("default/index.html.twig", [
             'piscine' => $piscine,
@@ -43,9 +45,29 @@ class DefaultController extends AbstractController
         ]);
     }
 
-    public function piscinePumpStart(Piscine $piscine)
+    public function piscinePumpToState(Piscine $piscine, $targetStatus = 'off')
     {
+        $actionSubURL = '/device/relay/control';
+        $response = $this->client->request(
+            'POST',
+            $piscine->getCloudServer().$actionSubURL,
+            [
+                'body' => [
+                    'auth_key' => $piscine->getCloudKey(),
+                    'id' => $piscine->getDeviceId(),
+                    'turn' => $targetStatus,
+                    'channel' => $piscine->getChannel()
+                ],
+                'verify_peer' => false
+            ]
+        );
 
+        $content = $response->toArray();
+        if (key_exists('isok', $content)) {
+            if ($content['isok'] == 'false') {
+                // TODO Handle Error
+            }
+        }
     }
 
     /**
@@ -110,5 +132,11 @@ class DefaultController extends AbstractController
         ), array('date' => 'DESC')
         );
         return $poolTemperature;
+    }
+
+    private $client;
+    public function __construct(HttpClientInterface $client)
+    {
+        $this->client = $client;
     }
 }

@@ -70,6 +70,16 @@ class Piscine
     private $apiKey;
 
     /**
+     * @ORM\Column (name="device_id", type="string", length=10, nullable=false, unique=true)
+     */
+    private $deviceId;
+
+    /**
+     * @ORM\Column (name="channel", type="integer")
+     */
+    private $channel;
+
+    /**
      * @ORM\Column(type="string", length=191, nullable=true)
      */
     private $typeChimie;
@@ -320,6 +330,30 @@ class Piscine
     public function setNextPumpStatusSwitch(?\DateTimeInterface $nextPumpStatusSwitch): self
     {
         $this->nextPumpStatusSwitch = $nextPumpStatusSwitch;
+
+        return $this;
+    }
+
+    public function getDeviceId(): ?string
+    {
+        return $this->deviceId;
+    }
+
+    public function setDeviceId(string $deviceId): self
+    {
+        $this->deviceId = $deviceId;
+
+        return $this;
+    }
+
+    public function getChannel(): ?int
+    {
+        return $this->channel;
+    }
+
+    public function setChannel(int $channel): self
+    {
+        $this->channel = $channel;
 
         return $this;
     }
