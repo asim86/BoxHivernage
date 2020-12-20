@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Piscine;
+use App\Entity\Programme;
 use App\Entity\ProgramSelection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpClient\HttpClient;
@@ -36,12 +37,14 @@ class DefaultController extends AbstractController
      */
     public function piscineAction(Piscine $piscine)
     {
-        $poolTemperature = $this->getMesure($piscine);
-        $this->piscinePumpToState($piscine, 'off');
-
+        list($poolTemperature, $programSelection, $currentPumpStatus, $shouldbeOn) = $this->piscineVariablePreparation($piscine);
+        $this->pumpWatchdog($piscine);
         return $this->render("default/index.html.twig", [
             'piscine' => $piscine,
-            'poolTemperature' => $poolTemperature
+            'poolTemperature' => $poolTemperature,
+            'programSelection' => $programSelection,
+            'currentPumpStatus' => $currentPumpStatus,
+            'shouldbeOn' => $shouldbeOn
         ]);
     }
 
@@ -64,10 +67,38 @@ class DefaultController extends AbstractController
 
         $content = $response->toArray();
         if (key_exists('isok', $content)) {
-            if ($content['isok'] == 'false') {
+            if ($content['isok'] == false) {
                 // TODO Handle Error
             }
         }
+    }
+
+    public function getCurrentPumpStatus(Piscine $piscine)
+    {
+        $actionSubURL = '/device/status';
+        $response = $this->client->request(
+            'GET',
+            $piscine->getCloudServer().$actionSubURL,
+            [
+                'query' => [
+                    'auth_key' => $piscine->getCloudKey(),
+                    'id' => $piscine->getDeviceId()
+                ],
+                'verify_peer' => false
+            ]
+        );
+
+        $status = 'unknown';
+        $content = $response->toArray();
+        if (key_exists('isok', $content)) {
+            if ($content['isok'] == false) {
+                // TODO Handle Error
+            } else {
+                $status = $content["data"]["device_status"]["relays"][0]["ison"];
+            }
+        }
+
+        return $status;
     }
 
     /**
@@ -80,10 +111,14 @@ class DefaultController extends AbstractController
         $em = $this->getDoctrine()->getManager();
         $programSelector = $em->getRepository('App:ProgramSelection')->findOneBy(array('piscine' => $piscine));
         $programList = $em->getRepository('App:Programme')->findAll();
+
         if ($programSelector) {
+            /*if ($programSelector->getForced() and $programSelector->getForceUntil() > new \DateTime()) {
+
+            }*/
 
             $difference = $programSelector->getSelectionDate()->diff(new \DateTime());
-            if ($difference->h > 24 or $difference->d > 0) {
+            if ($difference->h > 24 or $difference->d > 0 or $difference->m > 0) {
                 if ($temperature < 10) {
                     $programSelector->setProgram($programList[1]);
                 } elseif ($temperature < 12) {
@@ -138,5 +173,100 @@ class DefaultController extends AbstractController
     public function __construct(HttpClientInterface $client)
     {
         $this->client = $client;
+    }
+
+    private function shouldPumpBeOn(Programme $program, $poolTemperature)
+    {
+        if ($poolTemperature<= 0.5) {
+            return true;
+        }
+
+        $currentTime = (new \DateTime('now'))->format('H:i');
+
+        $start1 = $program->getStartTime1();
+        if ($start1) {
+            $start1 = $program->getStartTime1()->format('H:i');
+        }
+
+        $stop1 = $program->getStopTime1();
+        if ($stop1) {
+            $stop1 = $program->getStopTime1()->format('H:i');
+        }
+
+        $start2 = $program->getStartTime2();
+        if ($start2) {
+            $start2 = $program->getStartTime2()->format('H:i');
+        }
+
+        $stop2 = $program->getStopTime2();
+        if ($stop2) {
+            $stop2 = $program->getStopTime2()->format('H:i');
+        }
+
+        $start3 = $program->getStartTime3();
+        if ($start3) {
+            $start3 = $program->getStartTime3()->format('H:i');
+        }
+
+        $stop3 = $program->getStopTime3();
+        if ($stop3) {
+            $stop3 = $program->getStopTime3()->format('H:i');
+        }
+
+        $start4 = $program->getStartTime4();
+        if ($start4) {
+            $start4 = $program->getStartTime4()->format('H:i');
+        }
+
+        $stop4 = $program->getStopTime4();
+        if ($stop4) {
+            $stop4 = $program->getStopTime4()->format('H:i');
+        }
+
+        if (
+            ($currentTime >= $start1 && $currentTime <= $stop1) or
+            ($currentTime >= $start2 && $currentTime <= $stop2) or
+            ($currentTime >= $start3 && $currentTime <= $stop3) or
+            ($currentTime >= $start4 && $currentTime <= $stop4)
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function pumpWatchdog(Piscine $piscine) {
+        list($poolTemperature, $programSelection, $currentPumpStatus, $souldbeOn) = $this->piscineVariablePreparation($piscine);
+        if ($currentPumpStatus != $souldbeOn) {
+            if ($currentPumpStatus) {
+                $this->piscinePumpToState($piscine, 'off');
+            }
+            else {
+                $this->piscinePumpToState($piscine, 'on');
+            }
+        }
+    }
+
+    /**
+     * @param Piscine $piscine
+     * @return array
+     */
+    private function piscineVariablePreparation(Piscine $piscine): array
+    {
+        $poolTemperature = $this->getMesure($piscine);
+        $this->defineProgramAction($piscine);
+
+        $programSelection = $this->getDoctrine()->getManager()->getRepository('App:ProgramSelection')->findOneBy(array(
+            'piscine' => $piscine
+        ));
+
+        $currentPumpStatus = $this->getCurrentPumpStatus($piscine);
+        if ($programSelection) {
+            $shouldbeOn = $this->shouldPumpBeOn($programSelection->getProgram(), $poolTemperature->getTemperature());
+        }
+        else {
+            $shouldbeOn = false;
+        }
+        return array($poolTemperature, $programSelection, $currentPumpStatus, $shouldbeOn);
     }
 }

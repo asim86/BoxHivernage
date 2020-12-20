@@ -18,6 +18,40 @@
         </tbody>
     </table>
     <h3>Programme de la Pompe</h3>
+    <table>
+        <thead>
+        <tr>
+            <th>Numero de Programe</th>
+            <th>StartTime1</th>
+            <th>StopTime1</th>
+            <th>StartTime2</th>
+            <th>StopTime2</th>
+            <th>StartTime3</th>
+            <th>StopTime3</th>
+            <th>StartTime4</th>
+            <th>StopTime4</th>
+            <th>Current Status</th>
+            <th>Should be ON</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            {% if programSelection.program is defined %}
+            <td>{{ programSelection.program }}</td>
+            <td>{% if programSelection.program.startTime1 %}{{ programSelection.program.startTime1|date('H:i') }}{% endif %}</td>
+            <td>{% if programSelection.program.stopTime1 %}{{ programSelection.program.stopTime1|date('H:i') }}{% endif %}</td>
+            <td>{% if programSelection.program.startTime2 %}{{ programSelection.program.startTime2|date('H:i') }}{% endif %}</td>
+            <td>{% if programSelection.program.stopTime2 %}{{ programSelection.program.stopTime2|date('H:i') }}{% endif %}</td>
+            <td>{% if programSelection.program.startTime3 %}{{ programSelection.program.startTime3|date('H:i') }}{% endif %}</td>
+            <td>{% if programSelection.program.stopTime3 %}{{ programSelection.program.stopTime3|date('H:i') }}{% endif %}</td>
+            <td>{% if programSelection.program.startTime4 %}{{ programSelection.program.startTime4|date('H:i') }}{% endif %}</td>
+            <td>{% if programSelection.program.stopTime4 %}{{ programSelection.program.stopTime4|date('H:i') }}{% endif %}</td>
+            <td>{{ currentPumpStatus }}</td>
+            <td>{{ shouldbeOn }}</td>
+            {% endif %}
+        </tr>
+        </tbody>
+    </table>
     <h3>Pompe</h3>
     <a href="#" class="myButtonStart">Démarrer Pompe</a>
 {% endblock %}

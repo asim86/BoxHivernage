@@ -74,7 +74,7 @@ class APIController extends AbstractController
                     $mesure = new Mesure();
                     $mesure->setDate(new \DateTime());
                     $mesure->setPiscine($piscine);
-                    $mesure->setTemperature(substr($temperature, 2));
+                    $mesure->setTemperature($temperature);
                     $em->persist($mesure);
                     $em->flush();
                     return new Response('ok', 201);
