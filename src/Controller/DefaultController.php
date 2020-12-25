@@ -9,6 +9,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\VarDumper\VarDumper;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -37,8 +38,34 @@ class DefaultController extends AbstractController
      */
     public function piscineAction(Piscine $piscine)
     {
-        list($poolTemperature, $programSelection, $currentPumpStatus, $shouldbeOn) = $this->piscineVariablePreparation($piscine);
-        $this->pumpWatchdog($piscine);
+        // Get latest pool temperature
+        $poolTemperature = $this->getMesure($piscine);
+
+        // Check if we should update pump program according to temperature
+        $programSelection = $this->defineProgramAction($piscine);
+
+        // Fetch the current pump status
+        $currentPumpStatus = $this->getCurrentPumpStatus($piscine);
+
+        // Figure out if pump should be on or off
+        if ($programSelection) {
+            $shouldbeOn = $this->shouldPumpBeOn($programSelection->getProgram(), $poolTemperature->getTemperature());
+        }
+        else {
+            $shouldbeOn = false;
+        }
+
+        sleep(5);
+
+        if ($currentPumpStatus != $shouldbeOn) {
+            if ($currentPumpStatus) {
+                $this->piscinePumpToState($piscine, 'off');
+            }
+            else {
+                $this->piscinePumpToState($piscine, 'on');
+            }
+        }
+
         return $this->render("default/index.html.twig", [
             'piscine' => $piscine,
             'poolTemperature' => $poolTemperature,
@@ -51,17 +78,23 @@ class DefaultController extends AbstractController
     public function piscinePumpToState(Piscine $piscine, $targetStatus = 'off')
     {
         $actionSubURL = '/device/relay/control';
+
+        $formFields = [
+            'auth_key' => $piscine->getCloudKey(),
+            'id' => $piscine->getDeviceId(),
+            'turn' => $targetStatus,
+            'channel' => '0'
+        ];
+        $formData = new FormDataPart($formFields);
+
         $response = $this->client->request(
             'POST',
             $piscine->getCloudServer().$actionSubURL,
             [
-                'body' => [
-                    'auth_key' => $piscine->getCloudKey(),
-                    'id' => $piscine->getDeviceId(),
-                    'turn' => $targetStatus,
-                    'channel' => $piscine->getChannel()
-                ],
-                'verify_peer' => false
+                'headers' => $formData->getPreparedHeaders()->toArray(),
+                'body' => $formData->bodyToIterable(),
+                'verify_peer' => false,
+                'verify_host' => false
             ]
         );
 
@@ -138,10 +171,10 @@ class DefaultController extends AbstractController
                 $programSelector->setSelectionDate(new \DateTime());
                 $em->persist($programSelector);
                 $em->flush();
-                return $this->json(['result' => 'OK', 'ignore' => 'false', 'program' => $programSelector->getProgram()->getName()]);
+                return $programSelector;
             }
 
-            return $this->json(['result' => 'OK', 'ignore' => 'true']);
+            return $programSelector;
 
         }
         else {
@@ -152,6 +185,8 @@ class DefaultController extends AbstractController
             $em->persist($programSelector);
             $em->flush();
             $this->defineProgramAction($piscine);
+
+            return $programSelector;
         }
     }
 
@@ -233,40 +268,5 @@ class DefaultController extends AbstractController
         }
 
         return false;
-    }
-
-    public function pumpWatchdog(Piscine $piscine) {
-        list($poolTemperature, $programSelection, $currentPumpStatus, $souldbeOn) = $this->piscineVariablePreparation($piscine);
-        if ($currentPumpStatus != $souldbeOn) {
-            if ($currentPumpStatus) {
-                $this->piscinePumpToState($piscine, 'off');
-            }
-            else {
-                $this->piscinePumpToState($piscine, 'on');
-            }
-        }
-    }
-
-    /**
-     * @param Piscine $piscine
-     * @return array
-     */
-    private function piscineVariablePreparation(Piscine $piscine): array
-    {
-        $poolTemperature = $this->getMesure($piscine);
-        $this->defineProgramAction($piscine);
-
-        $programSelection = $this->getDoctrine()->getManager()->getRepository('App:ProgramSelection')->findOneBy(array(
-            'piscine' => $piscine
-        ));
-
-        $currentPumpStatus = $this->getCurrentPumpStatus($piscine);
-        if ($programSelection) {
-            $shouldbeOn = $this->shouldPumpBeOn($programSelection->getProgram(), $poolTemperature->getTemperature());
-        }
-        else {
-            $shouldbeOn = false;
-        }
-        return array($poolTemperature, $programSelection, $currentPumpStatus, $shouldbeOn);
     }
 }
