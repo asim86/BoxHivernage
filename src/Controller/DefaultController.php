@@ -198,7 +198,8 @@ class DefaultController extends AbstractController
     {
         // find Latest Mesure for a Pool
         $poolTemperature = $this->getDoctrine()->getManager()->getRepository('App:Mesure')->findOneBy(array(
-            'piscine' => $piscine
+            'piscine' => $piscine,
+            'valid' => true
         ), array('date' => 'DESC')
         );
         return $poolTemperature;

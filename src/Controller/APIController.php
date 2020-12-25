@@ -69,12 +69,18 @@ class APIController extends AbstractController
 
                 $temperature = $request->query->get('temp');
                 $pH = $request->query->get('pH');
+                $valid = true;
 
                 if ($temperature != null) {
+
+                    if ($temperature < -50 or $temperature > 50) {
+                        $valid = false;
+                    }
                     $mesure = new Mesure();
                     $mesure->setDate(new \DateTime());
                     $mesure->setPiscine($piscine);
                     $mesure->setTemperature($temperature);
+                    $mesure->setValid($valid);
                     $em->persist($mesure);
                     $em->flush();
                     return new Response('ok', 201);
@@ -85,6 +91,7 @@ class APIController extends AbstractController
                     $mesure->setDate(new \DateTime());
                     $mesure->setPiscine($piscine);
                     $mesure->setRawPH($pH);
+                    $mesure->setValid($valid);
                     $a = 0.1101;
                     $b = -16.87;
                     $pH = $a * floatval(floatval(substr($pH, 2))) + $b;

@@ -37,6 +37,11 @@ class Mesure
     private $rawPH;
 
     /**
+     * @ORM\Column(name="valid", type="boolean")
+     */
+    private $valid;
+
+    /**
      * @ORM\ManyToOne(targetEntity="App\Entity\Piscine")
      */
     private $piscine;
@@ -102,6 +107,18 @@ class Mesure
     public function setRawPH(?string $rawPH): self
     {
         $this->rawPH = $rawPH;
+
+        return $this;
+    }
+
+    public function getValid(): ?bool
+    {
+        return $this->valid;
+    }
+
+    public function setValid(bool $valid): self
+    {
+        $this->valid = $valid;
 
         return $this;
     }
