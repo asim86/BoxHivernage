@@ -213,7 +213,7 @@ class DefaultController extends AbstractController
 
     private function shouldPumpBeOn(Programme $program, $poolTemperature)
     {
-        if ($poolTemperature<= 0.5) {
+        if ($poolTemperature<= 1) {
             return true;
         }
 

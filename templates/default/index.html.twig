@@ -53,5 +53,7 @@
         </tbody>
     </table>
     <h3>Pompe</h3>
-    <a href="#" class="myButtonStart">Démarrer Pompe</a>
+    <a href="#" class="myButtonStart">{% if currentPumpStatus %}Arreter Pompe{% else %}Démarré Pompe{% endif %}</a>
+    <h3>Accès Admin</h3>
+    <a href="{{ path('easyadmin') }}" class="myButtonStart">Accès admin</a>
 {% endblock %}
