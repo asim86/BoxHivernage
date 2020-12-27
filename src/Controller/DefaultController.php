@@ -10,6 +10,10 @@ use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
+use Symfony\Component\Notifier\ChatterInterface;
+use Symfony\Component\Notifier\Message\ChatMessage;
+use Symfony\Component\Notifier\Notification\Notification;
+use Symfony\Component\Notifier\NotifierInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\VarDumper\VarDumper;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -29,6 +33,19 @@ class DefaultController extends AbstractController
             'controller_name' => 'DefaultController',
             'piscineList' => $piscineList
         ]);
+    }
+
+    /**
+     * @Route("/piscine/{id}/alertTest")
+     */
+    public function alertTestAction(ChatterInterface $chatter)
+    {
+        $message = (new ChatMessage('You got a new invoice for 15 EUR.'))
+            // if not set explicitly, the message is send to the
+            // default transport (the first one configured)
+            ->transport('telegram');
+
+        $sentMessage = $chatter->send($message);
     }
 
     /**
