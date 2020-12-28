@@ -3,6 +3,7 @@ framework:
         chatter_transports:
         #    slack: '%env(SLACK_DSN)%'
             telegram: '%env(TELEGRAM_DSN)%'
+            telegramSecondary: '%env(TELEGRAM_SECOND_DSN)%'
         #texter_transports:
         #    twilio: '%env(TWILIO_DSN)%'
         #    nexmo: '%env(NEXMO_DSN)%'

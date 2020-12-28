@@ -19,32 +19,13 @@ class MesureRepository extends ServiceEntityRepository
         parent::__construct($registry, Mesure::class);
     }
 
-    // /**
-    //  * @return Mesure[] Returns an array of Mesure objects
-    //  */
-    /*
-    public function findByExampleField($value)
+    public function findByLastMeasurements($lastValues)
     {
         return $this->createQueryBuilder('m')
-            ->andWhere('m.exampleField = :val')
-            ->setParameter('val', $value)
-            ->orderBy('m.id', 'ASC')
-            ->setMaxResults(10)
+            ->orderBy('m.id', 'DESC')
+            ->setMaxResults($lastValues)
             ->getQuery()
             ->getResult()
-        ;
+            ;
     }
-    */
-
-    /*
-    public function findOneBySomeField($value): ?Mesure
-    {
-        return $this->createQueryBuilder('m')
-            ->andWhere('m.exampleField = :val')
-            ->setParameter('val', $value)
-            ->getQuery()
-            ->getOneOrNullResult()
-        ;
-    }
-    */
 }

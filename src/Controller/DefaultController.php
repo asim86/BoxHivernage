@@ -5,17 +5,14 @@ namespace App\Controller;
 use App\Entity\Piscine;
 use App\Entity\Programme;
 use App\Entity\ProgramSelection;
+use DateTime;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Component\Notifier\ChatterInterface;
+use Symfony\Component\Notifier\Exception\TransportExceptionInterface;
 use Symfony\Component\Notifier\Message\ChatMessage;
-use Symfony\Component\Notifier\Notification\Notification;
-use Symfony\Component\Notifier\NotifierInterface;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\VarDumper\VarDumper;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class DefaultController extends AbstractController
@@ -37,23 +34,33 @@ class DefaultController extends AbstractController
 
     /**
      * @Route("/piscine/{id}/alertTest")
+     * @param ChatterInterface $chatter
+     * @param string $message
+     * @throws TransportExceptionInterface
      */
-    public function alertTestAction(ChatterInterface $chatter)
+    public function sendMessage(ChatterInterface $chatter, $message = 'You have been able to receive the test Message')
     {
-        $message = (new ChatMessage('You got a new invoice for 15 EUR.'))
+        $message = (new ChatMessage($message))
             // if not set explicitly, the message is send to the
             // default transport (the first one configured)
             ->transport('telegram');
 
-        $sentMessage = $chatter->send($message);
+        $chatter->send($message);
+
+        if (isset($_ENV['TELEGRAM_SECOND_DSN'])) {
+            $message->transport('telegramSecondary');
+            $chatter->send($message);
+        }
     }
 
     /**
      * @Route("/piscine/{id}")
+     * @param ChatterInterface $chatter
      * @param Piscine $piscine
      * @return Response
+     * @throws TransportExceptionInterface
      */
-    public function piscineAction(Piscine $piscine)
+    public function piscineAction(ChatterInterface $chatter, Piscine $piscine)
     {
         // Get latest pool temperature
         $poolTemperature = $this->getMesure($piscine);
@@ -82,6 +89,27 @@ class DefaultController extends AbstractController
                 $this->piscinePumpToState($piscine, 'on');
             }
         }
+
+        // Here we check the last X values. If they are all invalid then we need to send warning notification. Also if we have not received any value for some times, we need to send notification
+        $lastMeasurements = $this->getDoctrine()->getRepository('App:Mesure')->findByLastMeasurements(3);
+        $allInvalid = true;
+        foreach ($lastMeasurements as $measurement) {
+            if ($measurement->getValid()) {
+                $allInvalid = false;
+            }
+        }
+        if ($allInvalid) {
+            // Send notification
+            $this->sendMessage($chatter, 'Last 3 Values received for temperature are invalid');
+        }
+
+        $lastMeasurementDate = $lastMeasurements[0]->getDate();
+        $difference = $lastMeasurementDate->diff(new DateTime());
+        if ($difference->h > 5 or $difference->d > 0 or $difference->m > 0) {
+            // No measurement received since long time, send notification
+            $this->sendMessage($chatter, 'No temperature received on past 5 hours');
+        }
+
 
         return $this->render("default/index.html.twig", [
             'piscine' => $piscine,
@@ -167,7 +195,7 @@ class DefaultController extends AbstractController
 
             }*/
 
-            $difference = $programSelector->getSelectionDate()->diff(new \DateTime());
+            $difference = $programSelector->getSelectionDate()->diff(new DateTime());
             if ($difference->h > 24 or $difference->d > 0 or $difference->m > 0) {
                 if ($temperature < 10) {
                     $programSelector->setProgram($programList[1]);
@@ -185,7 +213,7 @@ class DefaultController extends AbstractController
                     $programSelector->setProgram($programList[7]);
                 }
 
-                $programSelector->setSelectionDate(new \DateTime());
+                $programSelector->setSelectionDate(new DateTime());
                 $em->persist($programSelector);
                 $em->flush();
                 return $programSelector;
@@ -197,7 +225,7 @@ class DefaultController extends AbstractController
         else {
             $programSelector = new ProgramSelection();
             $programSelector->setPiscine($piscine);
-            $programSelector->setSelectionDate(new \DateTime());
+            $programSelector->setSelectionDate(new DateTime());
             $programSelector->setForced(false);
             $em->persist($programSelector);
             $em->flush();
@@ -234,7 +262,7 @@ class DefaultController extends AbstractController
             return true;
         }
 
-        $currentTime = (new \DateTime('now'))->format('H:i');
+        $currentTime = (new DateTime('now'))->format('H:i');
 
         $start1 = $program->getStartTime1();
         if ($start1) {
