@@ -11,7 +11,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
-use Symfony\Component\VarDumper\VarDumper;
+
 
 /**
  * @Route("/api", name="api_")
@@ -53,6 +53,8 @@ class APIController extends AbstractController
 
     /**
      * @Route("/mesure/add", name="ajout", methods={"GET"})
+     * @param Request $request
+     * @return Response
      */
     public function addMesure(Request $request)
     {
@@ -61,7 +63,7 @@ class APIController extends AbstractController
         //Verification de la cle API
         $providedKey = $request->query->get('apiKey');
         if ($providedKey != null) {
-            $piscine = $em->getRepository('App\Entity\Piscine')->findOneBy(array(
+            $piscine = $em->getRepository('App:Piscine')->findOneBy(array(
                 'apiKey' => $providedKey
             ));
 
