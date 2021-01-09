@@ -3,8 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Piscine;
-use App\Entity\Programme;
 use App\Entity\ProgramSelection;
+use DateInterval;
 use DateTime;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -71,24 +71,14 @@ class DefaultController extends AbstractController
         // Fetch the current pump status
         $currentPumpStatus = $this->getCurrentPumpStatus($piscine);
 
-        // Figure out if pump should be on or off
+        // Figure out if pump should be on or off based on Schedule or due to Forced Status (Can be forced manually or to ensure we keep pump on during 1h once temperature go below limit value
         if ($programSelection) {
-            $shouldbeOn = $this->shouldPumpBeOn($programSelection->getProgram(), $poolTemperature->getTemperature());
+            $shouldbeOn = $this->shouldPumpBeOn($programSelection, $poolTemperature->getTemperature());
         }
         else {
             $shouldbeOn = false;
         }
-
         sleep(5);
-
-        if ($currentPumpStatus != $shouldbeOn) {
-            if ($currentPumpStatus) {
-                $this->piscinePumpToState($piscine, 'off');
-            }
-            else {
-                $this->piscinePumpToState($piscine, 'on');
-            }
-        }
 
         // Here we check the last X values. If they are all invalid then we need to send warning notification. Also if we have not received any value for some times, we need to send notification
         $lastMeasurements = $this->getDoctrine()->getRepository('App:Mesure')->findByLastMeasurements(3);
@@ -101,6 +91,10 @@ class DefaultController extends AbstractController
         if ($allInvalid) {
             // Send notification
             $this->sendMessage($chatter, 'Last 3 Values received for temperature are invalid');
+            if ($poolTemperature->getTemperature() <=1.4) {
+                $shouldbeOn = true;
+                $this->sendMessage($chatter, 'No value received but last temperature  was below 1.4. Pool can freeze. Please check');
+            }
         }
 
         $lastMeasurementDate = $lastMeasurements[0]->getDate();
@@ -108,6 +102,25 @@ class DefaultController extends AbstractController
         if ($difference->h > 5 or $difference->d > 0 or $difference->m > 0) {
             // No measurement received since long time, send notification
             $this->sendMessage($chatter, 'No temperature received on past 5 hours');
+            sleep(2);
+            if ($poolTemperature->getTemperature() <=1.4) {
+                $shouldbeOn = true;
+                $this->sendMessage($chatter, 'No value received but last temperature  was below 1.4. Pool can freeze. Please check');
+            }
+        }
+
+        if ($currentPumpStatus != $shouldbeOn) {
+            if ($currentPumpStatus) {
+                $this->piscinePumpToState($piscine, 'off');
+            }
+            else {
+                $this->piscinePumpToState($piscine, 'on');
+                if ($poolTemperature->getTemperature() <= 1) {
+                    $this->sendMessage($chatter, 'Temperature below 1°C. Forcing pump to switch ON');
+                    /*$programSelection->setForced(true);
+                    $programSelection->setForceUntil(new DateTime('now'));*/
+                }
+            }
         }
 
 
@@ -256,13 +269,39 @@ class DefaultController extends AbstractController
         $this->client = $client;
     }
 
-    private function shouldPumpBeOn(Programme $program, $poolTemperature)
+    private function shouldPumpBeOn(ProgramSelection $programSelection, $poolTemperature)
     {
-        if ($poolTemperature<= 1) {
-            return true;
+        $program = $programSelection->getProgram();
+
+        $currentDate = new DateTime('now');
+        $currentTime = $currentDate->format('H:i');
+
+        if ($programSelection->getForced()) {
+            $forcedUntil = $programSelection->getForceUntil()->format('d/M/YY H:i');
+            if ($forcedUntil > (new DateTime('now'))->format('d/M/YY H:i')) {
+                return true;
+            }
+            else {
+                $programSelection->setForced(false);
+                $em = $this->getDoctrine()->getManager();
+                $em->persist($programSelection);
+                $em->flush();
+            }
         }
 
-        $currentTime = (new DateTime('now'))->format('H:i');
+        // Ant-Freezing limit value is controlled here
+        if ($poolTemperature<= 1) {
+            if (!$programSelection->getForced()) {
+                $programSelection->setForced(true);
+                $forcedUntil = $currentDate->add(new DateInterval('PT1H'));
+                $programSelection->setForceUntil($forcedUntil);
+                $em = $this->getDoctrine()->getManager();
+                $em->persist($programSelection);
+                $em->flush();
+            }
+
+            return true;
+        }
 
         $start1 = $program->getStartTime1();
         if ($start1) {
