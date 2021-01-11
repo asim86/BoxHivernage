@@ -13,3 +13,5 @@ easy_admin:
             class: App\Entity\Programme
         programSelection:
             class: App\Entity\ProgramSelection
+        Weather:
+            class: App\Entity\Weather

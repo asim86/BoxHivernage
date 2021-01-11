@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -108,6 +107,11 @@ class Piscine
      * @ORM\Column (type="datetime", nullable=true)
      */
     private $nextPumpStatusSwitch;
+
+    /**
+     * @ORM\Column (type="string", nullable=true, length=191)
+     */
+    private $weatherAPIKey;
 
     /**
      * @ORM\PrePersist()
@@ -249,14 +253,6 @@ class Piscine
         return $this;
     }
 
-    /**
-     * @return Collection|CloudLink[]
-     */
-    public function getCloudLink(): Collection
-    {
-        return $this->cloudLink;
-    }
-
     public function __toString()
     {
         return $this->getNom();
@@ -354,6 +350,18 @@ class Piscine
     public function setChannel(int $channel): self
     {
         $this->channel = $channel;
+
+        return $this;
+    }
+
+    public function getWeatherAPIKey(): ?string
+    {
+        return $this->weatherAPIKey;
+    }
+
+    public function setWeatherAPIKey(?string $weatherAPIKey): self
+    {
+        $this->weatherAPIKey = $weatherAPIKey;
 
         return $this;
     }

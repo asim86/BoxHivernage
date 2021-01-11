@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Mesure;
 use App\Repository\MesureRepository;
+use DateTime;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -79,18 +80,24 @@ class APIController extends AbstractController
                         $valid = false;
                     }
                     $mesure = new Mesure();
-                    $mesure->setDate(new \DateTime());
+                    $mesure->setDate(new DateTime());
                     $mesure->setPiscine($piscine);
                     $mesure->setTemperature($temperature);
                     $mesure->setValid($valid);
                     $em->persist($mesure);
                     $em->flush();
-                    return new Response('ok', 201);
+
+                    return $this->forward('App\Controller\WeatherController:weatherUpdateAction', [
+                        'piscine' => $piscine,
+                        'mesure' => $mesure
+                    ]);
+
+                  //  return new Response('ok', 201);
                 }
 
                 if ($pH != null) {
                     $mesure = new Mesure();
-                    $mesure->setDate(new \DateTime());
+                    $mesure->setDate(new DateTime());
                     $mesure->setPiscine($piscine);
                     $mesure->setRawPH($pH);
                     $mesure->setValid($valid);

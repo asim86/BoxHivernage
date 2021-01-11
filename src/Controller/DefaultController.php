@@ -14,7 +14,6 @@ use Symfony\Component\Notifier\Exception\TransportExceptionInterface;
 use Symfony\Component\Notifier\Message\ChatMessage;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
-
 class DefaultController extends AbstractController
 {
     /**
@@ -57,10 +56,11 @@ class DefaultController extends AbstractController
      * @Route("/piscine/{id}")
      * @param ChatterInterface $chatter
      * @param Piscine $piscine
+     * @param WeatherController $weatherController
      * @return Response
      * @throws TransportExceptionInterface
      */
-    public function piscineAction(ChatterInterface $chatter, Piscine $piscine)
+    public function piscineAction(ChatterInterface $chatter, Piscine $piscine, WeatherController $weatherController)
     {
         // Get latest pool temperature
         $poolTemperature = $this->getMesure($piscine);
@@ -83,6 +83,7 @@ class DefaultController extends AbstractController
         // Here we check the last X values. If they are all invalid then we need to send warning notification. Also if we have not received any value for some times, we need to send notification
         $lastMeasurements = $this->getDoctrine()->getRepository('App:Mesure')->findByLastMeasurements(3);
         $allInvalid = true;
+        $backupMode = false;
         foreach ($lastMeasurements as $measurement) {
             if ($measurement->getValid()) {
                 $allInvalid = false;
@@ -92,22 +93,33 @@ class DefaultController extends AbstractController
             // Send notification
             $this->sendMessage($chatter, 'Last 3 Values received for temperature are invalid');
             if ($poolTemperature->getTemperature() <=1.4) {
-                $shouldbeOn = true;
-                $this->sendMessage($chatter, 'No value received but last temperature  was below 1.4. Pool can freeze. Please check');
+                $backupMode = true;
             }
         }
 
         $lastMeasurementDate = $lastMeasurements[0]->getDate();
         $difference = $lastMeasurementDate->diff(new DateTime());
-        if ($difference->h > 5 or $difference->d > 0 or $difference->m > 0) {
+        if ($difference->h > 3 or $difference->d > 0 or $difference->m > 0) {
             // No measurement received since long time, send notification
-            $this->sendMessage($chatter, 'No temperature received on past 5 hours');
-            sleep(2);
+            $backupMode = true;
+            $this->sendMessage($chatter, 'No temperature received on past 3 hours');
+
+            /*sleep(1);
             if ($poolTemperature->getTemperature() <=1.4) {
                 $shouldbeOn = true;
                 $this->sendMessage($chatter, 'No value received but last temperature  was below 1.4. Pool can freeze. Please check');
+            }*/
+        }
+
+        if ($backupMode) {
+            $weather = $weatherController->weatherUpdate($piscine);
+            sleep(1);
+            if ($weather->getTemperature() <= 0.8) {
+                $this->sendMessage($chatter, 'External temperature at '.$piscine->getVille().' is '.$weather->getTemperature().'°C - Switching pump ON');
+                $shouldbeOn = true;
             }
         }
+
 
         if ($currentPumpStatus != $shouldbeOn) {
             if ($currentPumpStatus) {
@@ -115,7 +127,7 @@ class DefaultController extends AbstractController
             }
             else {
                 $this->piscinePumpToState($piscine, 'on');
-                if ($poolTemperature->getTemperature() <= 1) {
+                if ($poolTemperature->getTemperature() < 2) {
                     $this->sendMessage($chatter, 'Temperature below 1°C. Forcing pump to switch ON');
                     /*$programSelection->setForced(true);
                     $programSelection->setForceUntil(new DateTime('now'));*/
@@ -290,7 +302,7 @@ class DefaultController extends AbstractController
         }
 
         // Ant-Freezing limit value is controlled here
-        if ($poolTemperature<= 1) {
+        if ($poolTemperature< 2) {
             if (!$programSelection->getForced()) {
                 $programSelection->setForced(true);
                 $forcedUntil = $currentDate->add(new DateInterval('PT1H'));

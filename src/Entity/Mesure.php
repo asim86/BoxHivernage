@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -25,6 +26,11 @@ class Mesure
      * @ORM\Column(type="string", length=191, nullable=true)
      */
     private $temperature;
+
+    /**
+     * @ORM\OneToOne (targetEntity="App\Entity\Weather")
+     */
+    private $weatherCondition;
 
     /**
      * @ORM\Column(name="ph", type="string", length=191, nullable=true)
@@ -51,12 +57,12 @@ class Mesure
         return $this->id;
     }
 
-    public function getDate(): ?\DateTimeInterface
+    public function getDate(): ?DateTimeInterface
     {
         return $this->date;
     }
 
-    public function setDate(\DateTimeInterface $date): self
+    public function setDate(DateTimeInterface $date): self
     {
         $this->date = $date;
 
@@ -119,6 +125,18 @@ class Mesure
     public function setValid(bool $valid): self
     {
         $this->valid = $valid;
+
+        return $this;
+    }
+
+    public function getWeatherCondition(): ?Weather
+    {
+        return $this->weatherCondition;
+    }
+
+    public function setWeatherCondition(?Weather $weatherCondition): self
+    {
+        $this->weatherCondition = $weatherCondition;
 
         return $this;
     }
