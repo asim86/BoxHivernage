@@ -92,9 +92,7 @@ class DefaultController extends AbstractController
         if ($allInvalid) {
             // Send notification
             $this->sendMessage($chatter, 'Last 3 Values received for temperature are invalid');
-            if ($poolTemperature->getTemperature() <=1.4) {
-                $backupMode = true;
-            }
+            $backupMode = true;
         }
 
         $lastMeasurementDate = $lastMeasurements[0]->getDate();
@@ -127,10 +125,14 @@ class DefaultController extends AbstractController
             }
             else {
                 $this->piscinePumpToState($piscine, 'on');
-                if ($poolTemperature->getTemperature() < 2) {
-                    $this->sendMessage($chatter, 'Temperature below 1°C. Forcing pump to switch ON');
+                if ($poolTemperature->getTemperature() < $programSelection->getProgram()->getTriggerWaterTemperature()) {
+                    $this->sendMessage($chatter, 'Temperature below '.$programSelection->getProgram()->getTriggerWaterTemperature().'°C. Forcing pump to switch ON');
                     /*$programSelection->setForced(true);
                     $programSelection->setForceUntil(new DateTime('now'));*/
+
+                    if ($poolTemperature->getTemperature() < 0.8) {
+                        $this->sendMessage($chatter, 'Critical Temperature. Check if Pump works !!!!');
+                    }
                 }
             }
         }
@@ -302,7 +304,7 @@ class DefaultController extends AbstractController
         }
 
         // Ant-Freezing limit value is controlled here
-        if ($poolTemperature< 2) {
+        if ($poolTemperature< 1.3) {
             if (!$programSelection->getForced()) {
                 $programSelection->setForced(true);
                 $forcedUntil = $currentDate->add(new DateInterval('PT1H'));
