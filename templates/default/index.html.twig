@@ -56,4 +56,13 @@
     <a href="#" class="myButtonStart">{% if currentPumpStatus %}Arreter Pompe{% else %}Démarré Pompe{% endif %}</a>
     <h3>Accès Admin</h3>
     <a href="{{ path('easyadmin') }}" class="myButtonStart">Accès admin</a>
+
+    <div id="div_chart"></div>
+
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+        {#{{ gc_draw(line, 'div_chart') }}#}
+    </script>
+
+
 {% endblock %}
