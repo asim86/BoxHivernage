@@ -41,6 +41,11 @@ class ProgramSelection
      */
     private $forceUntil;
 
+    /**
+     * @ORM\Column (type="boolean")
+     */
+    private $forcedStatus;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -102,6 +107,18 @@ class ProgramSelection
     public function setPiscine(?Piscine $piscine): self
     {
         $this->piscine = $piscine;
+
+        return $this;
+    }
+
+    public function getForcedStatus(): ?bool
+    {
+        return $this->forcedStatus;
+    }
+
+    public function setForcedStatus(bool $forcedStatus): self
+    {
+        $this->forcedStatus = $forcedStatus;
 
         return $this;
     }

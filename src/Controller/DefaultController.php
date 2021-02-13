@@ -4,6 +4,9 @@ namespace App\Controller;
 
 use App\Entity\Piscine;
 use App\Entity\ProgramSelection;
+use CMEN\GoogleChartsBundle\GoogleCharts\Charts\LineChart;
+use CMEN\GoogleChartsBundle\GoogleCharts\Charts\PieChart;
+use CMEN\GoogleChartsBundle\GoogleCharts\Charts\ScatterChart;
 use DateInterval;
 use DateTime;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -13,6 +16,7 @@ use Symfony\Component\Notifier\ChatterInterface;
 use Symfony\Component\Notifier\Exception\TransportExceptionInterface;
 use Symfony\Component\Notifier\Message\ChatMessage;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\VarDumper\VarDumper;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 class DefaultController extends AbstractController
 {
@@ -112,9 +116,21 @@ class DefaultController extends AbstractController
         if ($backupMode) {
             $weather = $weatherController->weatherUpdate($piscine);
             sleep(1);
+
+            //TODO Duplicate code fragement to put in a function
             if ($weather->getTemperature() <= 0.8) {
                 $this->sendMessage($chatter, 'External temperature at '.$piscine->getVille().' is '.$weather->getTemperature().'°C - Switching pump ON');
+
                 $shouldbeOn = true;
+                if ($programSelection->getForced()) {
+                    $forcedUntil = $programSelection->getForceUntil()->format('d/M/YY H:i');
+                    if ($forcedUntil > (new DateTime('now'))->format('d/M/YY H:i')) {
+                        $shouldbeOn = $programSelection->getForcedStatus();
+                    }
+                }
+            }
+            else {
+                $shouldbeOn = false;
             }
         }
 
@@ -137,13 +153,32 @@ class DefaultController extends AbstractController
             }
         }
 
+        $lastMeasurements = $this->getDoctrine()->getManager()->getRepository('App:Mesure')->findByLastMeasurements(100);
+
+
+        /*$scatter = new ScatterChart();
+
+        $data = ['Time', 'Temperature'];
+        foreach ($lastMeasurements as $mesure) {
+            $data[] = [$mesure["date"],$mesure["temperature"]];
+        }
+        $scatter->getData()->setArrayToDataTable($data);
+        $scatter->getOptions()->setTitle('Age vs. Weight comparison');
+        $scatter->getOptions()->getHAxis()->setTitle('Age');
+        $scatter->getOptions()->getHAxis()->setMinValue(0);
+        $scatter->getOptions()->getHAxis()->setMaxValue(15);
+        $scatter->getOptions()->getVAxis()->setTitle('Weight');
+        $scatter->getOptions()->getVAxis()->setMinValue(0);
+        $scatter->getOptions()->getVAxis()->setMaxValue(15);
+        $scatter->getOptions()->getLegend()->setPosition('none');*/
 
         return $this->render("default/index.html.twig", [
             'piscine' => $piscine,
             'poolTemperature' => $poolTemperature,
             'programSelection' => $programSelection,
             'currentPumpStatus' => $currentPumpStatus,
-            'shouldbeOn' => $shouldbeOn
+            'shouldbeOn' => $shouldbeOn,
+           // 'line' => $scatter
         ]);
     }
 
@@ -293,10 +328,11 @@ class DefaultController extends AbstractController
         if ($programSelection->getForced()) {
             $forcedUntil = $programSelection->getForceUntil()->format('d/M/YY H:i');
             if ($forcedUntil > (new DateTime('now'))->format('d/M/YY H:i')) {
-                return true;
+                return $programSelection->getForcedStatus();
             }
             else {
                 $programSelection->setForced(false);
+                $programSelection->setForcedStatus(false); //May be not needed
                 $em = $this->getDoctrine()->getManager();
                 $em->persist($programSelection);
                 $em->flush();
@@ -307,6 +343,7 @@ class DefaultController extends AbstractController
         if ($poolTemperature< 1.3) {
             if (!$programSelection->getForced()) {
                 $programSelection->setForced(true);
+                $programSelection->setForcedStatus(true);
                 $forcedUntil = $currentDate->add(new DateInterval('PT1H'));
                 $programSelection->setForceUntil($forcedUntil);
                 $em = $this->getDoctrine()->getManager();
