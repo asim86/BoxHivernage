@@ -75,6 +75,10 @@ class Weather
      */
     private $WeatherDesc;
 
+    public function __toString() {
+        return $this->getTemperature();
+    }
+
     public function getId(): ?int
     {
         return $this->id;

@@ -29,7 +29,7 @@ class DefaultController extends AbstractController
         $piscineList = $mesureRepo->findAll();
 
         //TODO We should build here a page where we see list of all pools (piscine)
-        return $this->render('default/index.html.twig', [
+        return $this->render('default/overview.html.twig', [
             'controller_name' => 'DefaultController',
             'piscineList' => $piscineList
         ]);
@@ -41,23 +41,44 @@ class DefaultController extends AbstractController
      * @param string $message
      * @throws TransportExceptionInterface
      */
-    public function sendMessage(ChatterInterface $chatter, $message = 'You have been able to receive the test Message')
+    public function sendMessage(ChatterInterface $chatter, $message = 'You have been able to receive the test Message', int $messageTypeCode = 0)
     {
+        $sendMessage = true;
+        if ($messageTypeCode == 1) {
+            $message = 'Last 3 Values received for temperature are invalid';
+            $sendMessage = false;
+        }
+        elseif ($messageTypeCode == 2) {
+            $message = 'No temperature received on past 3 hours';
+            $sendMessage = false;
+        }
+        elseif ($messageTypeCode == 3 ) {
+            // External Temperature below limit in Backup Mode
+        }
+        elseif ($messageTypeCode == 4) {
+            // Reached limit temperature, switching pump on in regular Mode
+        }
+        elseif ($messageTypeCode == 5) {
+            $messageTypeCode = 'Critical Temperature. Check if Pump works !!!!';
+        }
+
         $message = (new ChatMessage($message))
             // if not set explicitly, the message is send to the
             // default transport (the first one configured)
             ->transport('telegram');
 
-        $chatter->send($message);
-
-        if (isset($_ENV['TELEGRAM_SECOND_DSN'])) {
-            $message->transport('telegramSecondary');
+        if ($sendMessage) {
             $chatter->send($message);
+
+            if (isset($_ENV['TELEGRAM_SECOND_DSN'])) {
+                $message->transport('telegramSecondary');
+                $chatter->send($message);
+            }
         }
     }
 
     /**
-     * @Route("/piscine/{id}")
+     * @Route("/piscine/{id}", name="piscine")
      * @param ChatterInterface $chatter
      * @param Piscine $piscine
      * @param WeatherController $weatherController
@@ -95,16 +116,16 @@ class DefaultController extends AbstractController
         }
         if ($allInvalid) {
             // Send notification
-            $this->sendMessage($chatter, 'Last 3 Values received for temperature are invalid');
+            $this->sendMessage($chatter, 'Last 3 Values received for temperature are invalid', 1);
             $backupMode = true;
         }
 
         $lastMeasurementDate = $lastMeasurements[0]->getDate();
-        $difference = $lastMeasurementDate->diff(new DateTime());
+        $difference = $lastMeasurementDate->diff(new DateTime('now', new \DateTimeZone('Europe/Paris')));
         if ($difference->h > 3 or $difference->d > 0 or $difference->m > 0) {
             // No measurement received since long time, send notification
             $backupMode = true;
-            $this->sendMessage($chatter, 'No temperature received on past 3 hours');
+            $this->sendMessage($chatter, 'No temperature received on past 3 hours', 2);
 
             /*sleep(1);
             if ($poolTemperature->getTemperature() <=1.4) {
@@ -119,18 +140,18 @@ class DefaultController extends AbstractController
 
             //TODO Duplicate code fragement to put in a function
             if ($weather->getTemperature() <= 0.8) {
-                $this->sendMessage($chatter, 'External temperature at '.$piscine->getVille().' is '.$weather->getTemperature().'°C - Switching pump ON');
+                $this->sendMessage($chatter, 'External temperature at '.$piscine->getVille().' is '.$weather->getTemperature().'°C - Switching pump ON', 3);
 
                 $shouldbeOn = true;
                 if ($programSelection->getForced()) {
                     $forcedUntil = $programSelection->getForceUntil()->format('d/M/YY H:i');
-                    if ($forcedUntil > (new DateTime('now'))->format('d/M/YY H:i')) {
+                    if ($forcedUntil > (new DateTime('now', new \DateTimeZone('Europe/Paris')))->format('d/M/YY H:i')) {
                         $shouldbeOn = $programSelection->getForcedStatus();
                     }
                 }
             }
             else {
-                $shouldbeOn = false;
+                //$shouldbeOn = false;
             }
         }
 
@@ -142,12 +163,12 @@ class DefaultController extends AbstractController
             else {
                 $this->piscinePumpToState($piscine, 'on');
                 if ($poolTemperature->getTemperature() < $programSelection->getProgram()->getTriggerWaterTemperature()) {
-                    $this->sendMessage($chatter, 'Temperature below '.$programSelection->getProgram()->getTriggerWaterTemperature().'°C. Forcing pump to switch ON');
+                    $this->sendMessage($chatter, 'Temperature below '.$programSelection->getProgram()->getTriggerWaterTemperature().'°C. Forcing pump to switch ON', 4);
                     /*$programSelection->setForced(true);
                     $programSelection->setForceUntil(new DateTime('now'));*/
 
                     if ($poolTemperature->getTemperature() < 0.8) {
-                        $this->sendMessage($chatter, 'Critical Temperature. Check if Pump works !!!!');
+                        $this->sendMessage($chatter, 'Critical Temperature. Check if Pump works !!!!', 5);
                     }
                 }
             }
@@ -257,7 +278,7 @@ class DefaultController extends AbstractController
 
             }*/
 
-            $difference = $programSelector->getSelectionDate()->diff(new DateTime());
+            $difference = $programSelector->getSelectionDate()->diff(new DateTime('now', new \DateTimeZone('Europe/Paris')));
             if ($difference->h > 24 or $difference->d > 0 or $difference->m > 0) {
                 if ($temperature < 10) {
                     $programSelector->setProgram($programList[1]);
@@ -275,7 +296,7 @@ class DefaultController extends AbstractController
                     $programSelector->setProgram($programList[7]);
                 }
 
-                $programSelector->setSelectionDate(new DateTime());
+                $programSelector->setSelectionDate(new DateTime('now', new \DateTimeZone('Europe/Paris')));
                 $em->persist($programSelector);
                 $em->flush();
                 return $programSelector;
@@ -287,7 +308,7 @@ class DefaultController extends AbstractController
         else {
             $programSelector = new ProgramSelection();
             $programSelector->setPiscine($piscine);
-            $programSelector->setSelectionDate(new DateTime());
+            $programSelector->setSelectionDate(new DateTime('now', new \DateTimeZone('Europe/Paris')));
             $programSelector->setForced(false);
             $em->persist($programSelector);
             $em->flush();
@@ -322,12 +343,12 @@ class DefaultController extends AbstractController
     {
         $program = $programSelection->getProgram();
 
-        $currentDate = new DateTime('now');
+        $currentDate = new DateTime('now', new \DateTimeZone('Europe/Paris') );
         $currentTime = $currentDate->format('H:i');
 
         if ($programSelection->getForced()) {
             $forcedUntil = $programSelection->getForceUntil()->format('d/M/YY H:i');
-            if ($forcedUntil > (new DateTime('now'))->format('d/M/YY H:i')) {
+            if ($forcedUntil > (new DateTime('now', new \DateTimeZone('Europe/Paris')))->format('d/M/YY H:i')) {
                 return $programSelection->getForcedStatus();
             }
             else {

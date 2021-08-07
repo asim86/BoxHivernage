@@ -38,6 +38,11 @@ class Mesure
     private $pH;
 
     /**
+     * @ORM\Column (name="tds", type="string", length=191, nullable=true)
+     */
+    private $tds;
+
+    /**
      * @ORM\Column(name="raw_ph", type="string", length=191, nullable=true)
      */
     private $rawPH;
@@ -51,6 +56,12 @@ class Mesure
      * @ORM\ManyToOne(targetEntity="App\Entity\Piscine")
      */
     private $piscine;
+
+    public function __construct()
+    {
+        $this->date = new \DateTime();
+        $this->valid = true;
+    }
 
     public function getId(): ?int
     {
@@ -137,6 +148,18 @@ class Mesure
     public function setWeatherCondition(?Weather $weatherCondition): self
     {
         $this->weatherCondition = $weatherCondition;
+
+        return $this;
+    }
+
+    public function getTds(): ?string
+    {
+        return $this->tds;
+    }
+
+    public function setTds(?string $tds): self
+    {
+        $this->tds = $tds;
 
         return $this;
     }

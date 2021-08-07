@@ -9,6 +9,12 @@ easy_admin:
             class: App\Entity\User
         mesure:
             class: App\Entity\Mesure
+            form:
+                fields:
+                    - temperature
+                    - pH
+                    - tds
+                    - piscine
         program:
             class: App\Entity\Programme
         programSelection:
