@@ -87,6 +87,9 @@ class DefaultController extends AbstractController
      */
     public function piscineAction(ChatterInterface $chatter, Piscine $piscine, WeatherController $weatherController)
     {
+        // Get Action done for the pool
+        $actionList = $this->getAction($piscine);
+
         // Get latest pool temperature
         $poolTemperature = $this->getMesure($piscine);
 
@@ -260,6 +263,17 @@ class DefaultController extends AbstractController
         }
 
         return $status;
+    }
+
+
+    function getAction(Piscine $piscine)
+    {
+        $em = $this->getDoctrine()->getManager();
+        $actionList = $em->getRepository('App:Action')->findBy(array(
+            'piscine' => $piscine
+        ));
+
+        return $actionList;
     }
 
     /**

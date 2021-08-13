@@ -5,6 +5,13 @@ easy_admin:
             list:
                 actions: ['start', 'stop']
             class: App\Entity\Piscine
+        action:
+            class: App\Entity\Action
+            form:
+                fields:
+                    - actionType
+        actionType:
+            class: App\Entity\ActionType
         user:
             class: App\Entity\User
         mesure:
@@ -15,6 +22,7 @@ easy_admin:
                     - pH
                     - tds
                     - piscine
+                    - pressionFiltre
         program:
             class: App\Entity\Programme
         programSelection:

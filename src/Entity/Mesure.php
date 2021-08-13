@@ -43,6 +43,11 @@ class Mesure
     private $tds;
 
     /**
+     * @ORM\Column (name="pression_filtre", type="string", length=191, nullable=true)
+     */
+    private $pressionFiltre;
+
+    /**
      * @ORM\Column(name="raw_ph", type="string", length=191, nullable=true)
      */
     private $rawPH;
@@ -160,6 +165,18 @@ class Mesure
     public function setTds(?string $tds): self
     {
         $this->tds = $tds;
+
+        return $this;
+    }
+
+    public function getPressionFiltre(): ?string
+    {
+        return $this->pressionFiltre;
+    }
+
+    public function setPressionFiltre(?string $pressionFiltre): self
+    {
+        $this->pressionFiltre = $pressionFiltre;
 
         return $this;
     }
